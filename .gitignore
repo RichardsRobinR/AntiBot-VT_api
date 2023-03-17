@@ -3,3 +3,4 @@ __pycache__/
 .env
 data.json
 data_url.json
+main.py
