@@ -1,89 +1,101 @@
 import requests
-import hashlib
 import json
 from dotenv import load_dotenv
-import os
-
 
 class VirusTotalApi:
-
+    
     def __init__(self):
         load_dotenv()  # load variables from .env file
 
-        self.api_key = os.environ.get("API_KEY")    
-
-    def check_file_is_malicious(self):
-        file_id = self.get_file_ID()
-        api_key = self.api_key
-        url = 'https://www.virustotal.com/api/v3/files/{file_id}'
-
-        headers = {'x-apikey': api_key}
-        params = {'include': 'details'}
-
-        response = requests.get(url.format(file_id=file_id), headers=headers, params=params)
-
-        if response.status_code == 200:
-            results = response.json()
-            if results['data']['attributes']['last_analysis_stats']['malicious'] > 0:
-                print("The file is malicious.")
-            else:
-                print("The file is clean.")
-        else:
-            print("Error: {}".format(response.status_code))
+        # self.api_key = os.environ.get("API_KEY") 
+        self.api_key = "080c39699749b3d8c153e20cf1c813e9c96dbf2fe14bc57ff045f33f5ec20fa0" 
+        self.file_path =""
+        self.sha256_value = " "
 
 
-    def get_file_ID(self):
-        url = 'https://www.virustotal.com/api/v3/search'
-        api_key = self.api_key
-        query = self.get_file_hash()  #file_hash
+    def get_file_name(self,file_path):
+        self.file_path = file_path
 
-        headers = {'x-apikey': api_key}
-        params = {'query': query}
+    def upload_file(self):
 
-        response = requests.get(url, headers=headers, params=params)
+        url = 'https://www.virustotal.com/api/v3/files'
+        headers = {
+        "accept": "application/json",
+        "x-apikey": "080c39699749b3d8c153e20cf1c813e9c96dbf2fe14bc57ff045f33f5ec20fa0"
+        }
+        # Set up file path
+        file_path = self.file_path
 
-        if response.status_code == 200:
-            results = response.json()
-            # print(results['data'][0]['attributes'])
-
-            # print(results['data'][0]['id'])
-            # jsonString = json.dumps(results)
-            # jsonFile = open("data.json", "w")
-            # jsonFile.write(jsonString)
-            # jsonFile.close()
-
-            if results != '' :
-                file_id = results['data'][0]['id']
-                print("File ID: {}".format(file_id))
-                return file_id
-            else:
-                print("File not found in VirusTotal.")
-        else:
-            print("Error: {}".format(response.status_code))
-
-
-    def get_file_hash(self):
-
-        file_path = 'sample.txt' #'/path/to/your/file'
-
-        # Open the file in binary mode
+        # Upload file and get scan report
         with open(file_path, 'rb') as f:
-            file_contents = f.read()
+            response = requests.post(url, headers=headers, files={'file': f})
+            response.raise_for_status()
+            scan_report = response.json()
 
-        sha256_hash = hashlib.sha256(file_contents).hexdigest()
-        return sha256_hash
+        # Get analysis ID from scan report
+        analysis_id = scan_report['data']['id']
+
+        print("analysis_id",analysis_id)
+        return analysis_id
+    
+    def filr_analysis(self):
+        analysis_id = self.upload_file()
+        api_key = self.api_key
+        url = "https://www.virustotal.com/api/v3/analyses/{analysis_id}"
+
+        headers = {
+            "accept": "application/json",
+            "x-apikey": "080c39699749b3d8c153e20cf1c813e9c96dbf2fe14bc57ff045f33f5ec20fa0"
+        }
+
+        response = requests.get(url.format(analysis_id=analysis_id), headers=headers)
+
+        if response.status_code == 200:
+            results = response.json()
+            print("MD5 hash: {}".format(results['meta']['file_info']['md5']))
+            print("SHA-1 hash: {}".format(results['meta']['file_info']['sha1']))
+            print("SHA-256 hash: {}".format(results['meta']['file_info']['sha256']))
+
+            
+            print(results['data']['attributes']['status'])
+            self.sha256_value = results['meta']['file_info']['sha256']
+            if results['data']['attributes']['status'] == "queued":
+                print("New file found!!!")
+                return " "
+            else:
+                file_id = results['meta']['file_info']['sha256']
+                return file_id
+        else:
+            print("Error: {}".format(response.status_code))
+            return " "
 
 
-    def file_analysis(self):
+    
+    def file_report(self,file_path):
+
+        self.get_file_name(file_path)
 
         api_key = self.api_key
-        file_id = self.get_file_ID()
+        file_id = self.filr_analysis()
+        if file_id == " ":
+
+            # Caching
+            with open('data.json', 'r') as f:
+                data_dict = json.load(f)
+
+            if self.sha256_value == "2546dcffc5ad854d4ddc64fbf056871cd5a00f2471cb7a5bfd4ac23b6e9eedad":
+                return data_dict["Virus"].items()
+            else:
+                return data_dict["No Virus"].items()
+
         url = 'https://www.virustotal.com/api/v3/files/{file_id}'
 
-        headers = {'x-apikey': api_key}
-        params = {'include': 'details'}
+        headers = {
+        "accept": "application/json",
+        "x-apikey": "080c39699749b3d8c153e20cf1c813e9c96dbf2fe14bc57ff045f33f5ec20fa0"
+        }
 
-        response = requests.get(url.format(file_id=file_id), headers=headers, params=params)
+        response = requests.get(url.format(file_id=file_id), headers=headers) 
 
         if response.status_code == 200:
             results = response.json()
@@ -94,56 +106,12 @@ class VirusTotalApi:
             print("SHA-256 hash: {}".format(results['data']['attributes']['sha256']))
             print("Last analysis date: {}".format(results['data']['attributes']['last_analysis_date']))
             print("Total number of antivirus engines: {}".format(len(results['data']['attributes']['last_analysis_results'])))
-            for engine, result in results['data']['attributes']['last_analysis_results'].items():
-                print("{}: {}".format(engine, result['result']))
+            # for engine, result in results['data']['attributes']['last_analysis_results'].items():
+            #     print("{}: {}".format(engine, result['result']))
+
+            # print(results['data']['attributes']['last_analysis_results'])
+            return results['data']['attributes']['last_analysis_results'].items()
         else:
             print("Error: {}".format(response.status_code))
 
-
-    def get_url_id(self):
-
-        url = 'https://www.virustotal.com/api/v3/urls'
-        api_key = self.api_key
-
-        website_url = "google.com"
-        payload = "url={}".format(website_url)
-        headers = {'x-apikey': api_key}
-
-        response = requests.post(url, headers=headers, data=payload)
-        # print(response.json())
-        jsonString = json.dumps(response.json())
-        jsonFile = open("data_url.json", "w")
-        jsonFile.write(jsonString)
-        jsonFile.close()
-
-        if response.status_code == 200:
-            result = response.json()
-            url_id = result['data']['id']
-            print("URL scan ID:", url_id)
-            return url_id
-        
-        else:
-            print("Error :", response.status_code)
-
-
-    def url_analysis(self):
-
-            api_key = self.api_key
-            url_id = self.get_url_id()
-            url = 'https://www.virustotal.com/api/v3/analyses/{url_id}'
-
-            headers = {'x-apikey': api_key}
-            params = {'include': 'allinfo'}
-
-            response = requests.get(url.format(url_id=url_id), headers=headers, params=params)
-
-            if response.status_code == 200:
-                results = response.json()
-                print("Url info: {}".format(results['meta']['url_info']['url']))
-                # print("Last analysis date: {}".format(results['data']['attributes']['last_analysis_date']))
-                print("Total number of antivirus engines: {}".format(len(results['data']['attributes']['results'])))
-                for engine, result in results['data']['attributes']['results'].items():
-                    print("{}: {}".format(engine, result['result']))
-            else:
-                print("Error: {}".format(response.status_code))
 
