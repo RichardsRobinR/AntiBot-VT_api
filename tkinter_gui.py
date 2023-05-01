@@ -29,7 +29,7 @@ def on_closing_new_win_table(new_win_table):
 
 def open_table(result_list):
     new_win_table = tk.Toplevel()
-    new_win_table.geometry("300x250")
+    new_win_table.geometry("700x400")
     tree = ttk.Treeview(new_win_table)
     tree["columns"] = ("one", "two")
     tree.column("#0", width=100,) #stretch=tk.NO
@@ -62,17 +62,27 @@ def open_table(result_list):
 
 root = tk.Tk()
 root.geometry("750x450")
+root.title("AntiBot-VT")
+root.resizable(False, False)
 
-frame = tk.Frame(root, width=400, height=500,highlightbackground='red',highlightthickness=3)
+mainframe = tk.Frame(root, width=400, height=500,)
+mainframe.place(relx=0.5, rely=0.5, anchor="center")
 
+
+bold_font = ("Arial", 36, "bold")
+label = tk.Label(mainframe, text="AntiBot-VT", font=bold_font)
+label.grid(row=0, column=0,padx=60,pady=20)
+
+frame = tk.Frame(mainframe, width=400, height=500,highlightbackground='light blue',highlightthickness=3)
 # Position the frame in the center of the window
-frame.place(relx=0.5, rely=0.5, anchor="center")
+# frame.place(relx=0.5, rely=0.5, anchor="w")
+frame.grid(row=0, column=1,padx=20,pady=20)
 
 image = tk.PhotoImage(file="tst.png")
-image_label = tk.Label(frame, image=image,height=160,width=140,background="red")
+image_label = tk.Label(frame, image=image,height=160,width=140,background="light blue")
 image_label.grid(row=0, column=0,padx=20,pady=20)
 
-button = tk.Button(frame, text="Click me!",command=browse_file)
+button = tk.Button(frame, text="Upload File",command=browse_file, width=20,height=2,font = ("Arial", 8, "bold"))
 button.grid(row=1, column=0,padx=20,pady=20)
 
 root.mainloop()
